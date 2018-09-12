@@ -436,7 +436,7 @@ int fileExists(const std::wstring& path) {
 
 bool hasEnding(std::wstring const &fullString, std::wstring const &ending) {
     if (fullString.length() >= ending.length()) {
-        return (0 == fullString.compare(fullString.length() - ending.length(), 
+        return (0 == fullString.compare(fullString.length() - ending.length(),
                                                         ending.length(), ending));
     }
     else {
@@ -458,26 +458,37 @@ std::wstring GetCurrentExecutableName() {
     return FileName;
 }
 
+std::wstring GetJavaHome() {
+    TCHAR JavaHome[MAX_PATH];
+    GetEnvironmentVariable(L"JAVA_HOME", JavaHome, MAX_PATH);
+    return JavaHome;
+}
+
 int wmain(int argc, wchar_t* argv[]) {
     wchar_t buf[MAX_PATH];
     GetModuleFileName(NULL, buf, MAX_PATH);
 
     std::wstring javacmd;
-    std::wstring javahome;
 
+    std::wstring javahome = GetJavaHome();
     std::wstring exe = GetCurrentExecutableName();
+    std::wstring path = ExtractFilePath(exe);
 
-    if (exe.length() <= 0) {
-        JavaVersion * jv2 = GetMaxVersion(HKEY_LOCAL_MACHINE, "SOFTWARE\\JavaSoft\\JDK");
-        if (jv2 != NULL) {
-            javahome = jv2->home;
-            javacmd = javahome + L"\\bin\\" + L"\\java.exe";
-        }
-        else {
-            javacmd = L"java.exe";
-        }
+    if (javahome.length() <= 0) {
+      if (exe.length() <= 0) {
+          JavaVersion * jv2 = GetMaxVersion(HKEY_LOCAL_MACHINE, "SOFTWARE\\JavaSoft\\JDK");
+          if (jv2 != NULL) {
+              javahome = jv2->home;
+              javacmd = javahome + L"\\bin\\" + L"\\java.exe";
+          }
+          else {
+              javacmd = L"java.exe";
+          }
+      } else {
+          javacmd = path + L"\\java.exe";
+      }
     } else {
-        javacmd = ExtractFilePath(exe) + L"\\java.exe";
+        javacmd = javahome + L"\\bin\\java.exe";
     }
 
     std::wstring cmd = L"\"" + javacmd + L"\"";
@@ -546,6 +557,8 @@ int wmain(int argc, wchar_t* argv[]) {
 
 
     cmd += debug + L" " + memory +
+                L" --module-path " + path +
+                L" --add-opens jdk.jlink/jdk.tools.jlink.internal.packager=jdk.packager" +
                 L" -m jdk.packager/jdk.packager.Main" +
                 L" " + args;
 
