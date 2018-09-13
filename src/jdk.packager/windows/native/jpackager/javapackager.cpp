@@ -458,37 +458,27 @@ std::wstring GetCurrentExecutableName() {
     return FileName;
 }
 
-std::wstring GetJavaHome() {
-    TCHAR JavaHome[MAX_PATH];
-    GetEnvironmentVariable(L"JAVA_HOME", JavaHome, MAX_PATH);
-    return JavaHome;
-}
-
 int wmain(int argc, wchar_t* argv[]) {
     wchar_t buf[MAX_PATH];
     GetModuleFileName(NULL, buf, MAX_PATH);
 
     std::wstring javacmd;
+    std::wstring javahome;
 
-    std::wstring javahome = GetJavaHome();
     std::wstring exe = GetCurrentExecutableName();
-    std::wstring path = ExtractFilePath(exe);
+    std::wstring exePath = ExtractFilePath(exe);
 
-    if (javahome.length() <= 0) {
-      if (exe.length() <= 0) {
-          JavaVersion * jv2 = GetMaxVersion(HKEY_LOCAL_MACHINE, "SOFTWARE\\JavaSoft\\JDK");
-          if (jv2 != NULL) {
-              javahome = jv2->home;
-              javacmd = javahome + L"\\bin\\" + L"\\java.exe";
-          }
-          else {
-              javacmd = L"java.exe";
-          }
-      } else {
-          javacmd = path + L"\\java.exe";
-      }
+    if (exe.length() <= 0) {
+        JavaVersion * jv2 = GetMaxVersion(HKEY_LOCAL_MACHINE, "SOFTWARE\\JavaSoft\\JDK");
+        if (jv2 != NULL) {
+            javahome = jv2->home;
+            javacmd = javahome + L"\\bin\\" + L"\\java.exe";
+        }
+        else {
+            javacmd = L"java.exe";
+        }
     } else {
-        javacmd = javahome + L"\\bin\\java.exe";
+        javacmd = exePath + L"\\java.exe";
     }
 
     std::wstring cmd = L"\"" + javacmd + L"\"";
@@ -557,7 +547,7 @@ int wmain(int argc, wchar_t* argv[]) {
 
 
     cmd += debug + L" " + memory +
-                L" --module-path " + path +
+                L" --module-path \"" + exePath + L"\"" +
                 L" --add-opens jdk.jlink/jdk.tools.jlink.internal.packager=jdk.packager" +
                 L" -m jdk.packager/jdk.packager.Main" +
                 L" " + args;
