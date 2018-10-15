@@ -64,7 +64,7 @@ endif
 # Create a dynamic list of symbols from the built object files. This is highly
 # platform dependent.
 
-ifeq ($(OPENJDK_TARGET_OS), linux)
+ifneq (, $(filter $(OPENJDK_TARGET_OS), android linux))
   DUMP_SYMBOLS_CMD := $(NM) --defined-only *.o
   ifneq ($(FILTER_SYMBOLS_PATTERN), )
     FILTER_SYMBOLS_PATTERN := $(FILTER_SYMBOLS_PATTERN)|
