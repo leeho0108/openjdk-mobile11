@@ -23,6 +23,8 @@
 # questions.
 #
 
+$(eval $(call IncludeCustomExtension, jdk, gensrc/GensrcMisc.gmk))
+
 ################################################################################
 # Install the launcher name, release version string, full version
 # string and the runtime name into the VersionProps.java file.
@@ -65,7 +67,7 @@ endif
 define generate-preproc-src
 	$(call MakeDir, $(@D))
 	( $(NAWK) '/@@END_COPYRIGHT@@/{exit}1' $< && \
-	  $(CPP) $(CPP_FLAGS) $(SYSROOT_CFLAGS) $(CFLAGS_JDKLIB) $< \
+	  $(CPP) $(CPP_FLAGS) $(EXTRA_CFLAGS) $(SYSROOT_CFLAGS) $(CFLAGS_JDKLIB) $< \
 	      2> >($(GREP) -v '^$(<F)$$' >&2) \
 	      | $(NAWK) '/@@START_HERE@@/,0' \
 	      |  $(SED) -e 's/@@START_HERE@@/\/\/ AUTOMATICALLY GENERATED FILE - DO NOT EDIT/' \

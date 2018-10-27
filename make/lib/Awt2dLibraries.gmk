@@ -153,6 +153,22 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       awt/image/cvutils/img_colors.c \
       #
 endif
+ifeq ($(OPENJDK_TARGET_OS), android)
+  LIBAWT_EXFILES += \
+      java2d/loops/TransformHelper.c \
+      java2d/loops/ScaledBlit.c \
+      java2d/pipe/Region.c \
+      java2d/loops/MaskBlit.c \
+      java2d/loops/GraphicsPrimitiveMgr.c \
+      awt/image/BufImgSurfaceData.c \
+      java2d/loops/Blit.c \
+      java2d/loops/BlitBg.c \
+      CUPSfuncs.c \
+      X11Color.c \
+      awt_Font.c \
+      fontpath.c
+endif
+
 
 ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
   LIBAWT_EXFILES += java2d/loops/MapAccelFunc.c
@@ -239,6 +255,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
         -delayload:comctl32.dll -delayload:shlwapi.dll, \
     LIBS_unix := -ljvm -ljava $(LIBM), \
     LIBS_linux :=  $(LIBDL), \
+    LIBS_android := $(LIBDL), \
     LIBS_solaris := $(LIBDL), \
     LIBS_aix := $(LIBDL),\
     LIBS_macosx := -lmlib_image \

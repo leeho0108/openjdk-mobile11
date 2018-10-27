@@ -27,6 +27,12 @@
 # jvm feature set, specific file overrides, and general flags.
 include lib/JvmFeatures.gmk
 include lib/JvmOverrideFiles.gmk
+
+ifeq ($(OPENJDK_TARGET_OS), android)
+    # JVM_CFLAGS += -DLINUX -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -I$TOOLCHAIN_LINK_CXX/armeabi
+    HOTSPOT_TARGET_OS := linux
+endif
+
 include lib/JvmFlags.gmk
 
 # Include support files that will setup DTRACE_EXTRA_OBJECT_FILES.
@@ -94,6 +100,8 @@ else ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), linux-aarch64)
   ifeq ($(HOTSPOT_TARGET_CPU_ARCH), arm)
     JVM_EXCLUDE_PATTERNS += arm_32 aarch64
   endif
+else ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), android-arm)
+  JVM_EXCLUDE_PATTERNS += arm_64
 endif
 
 ifneq ($(filter $(OPENJDK_TARGET_OS), linux macosx windows), )
@@ -145,6 +153,10 @@ JVM_STRIPFLAGS ?= $(STRIPFLAGS)
 
 ################################################################################
 # Now set up the actual compilation of the main hotspot native library
+
+ifeq ($(OPENJDK_TARGET_OS), android)
+    JVM_CFLAGS += -DLINUX -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -I$(DEVKIT_LIB_DIR)/../include/c++/4.9.x/arm-linux-androideabi/armv7-a
+endif
 
 $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
     NAME := jvm, \
