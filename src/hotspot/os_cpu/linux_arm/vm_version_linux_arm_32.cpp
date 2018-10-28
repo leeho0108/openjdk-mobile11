@@ -39,7 +39,12 @@ void VM_Version::get_os_cpu_info() {
 
   uname(&name);
   if (strncmp(name.machine, "aarch64", 7) == 0) {
+#if defined(ARM) && defined(__ANDROID__)
+    // Android returns aarch64 even if we're running in 32 bit mode.
+    _arm_arch = 7;
+#else
     _arm_arch = 8;
+#endif
   } else if (strncmp(name.machine, "armv", 4) == 0 &&
       name.machine[4] >= '5' && name.machine[4] <= '9') {
     _arm_arch = (int)(name.machine[4] - '0');

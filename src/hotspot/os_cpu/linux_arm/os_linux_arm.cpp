@@ -70,8 +70,12 @@
 # include <sys/wait.h>
 # include <pwd.h>
 # include <poll.h>
-# include <ucontext.h>
+#ifdef __ANDROID__
+# include <asm/sigcontext.h>
+#else
 # include <fpu_control.h>
+#endif
+# include <ucontext.h>
 # include <asm/ptrace.h>
 
 #define SPELL_REG_SP  "sp"
@@ -105,7 +109,7 @@ void os::initialize_thread(Thread* thr) {
 
 #else
 
-#if NGREG == 16
+#if defined(NGREG) && NGREG == 16
 // These definitions are based on the observation that until
 // the certain version of GCC mcontext_t was defined as
 // a structure containing gregs[NGREG] array with 16 elements.

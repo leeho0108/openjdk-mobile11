@@ -86,7 +86,15 @@
 #define JVM_SIGINT     SIGINT
 #define JVM_SIGTERM    SIGTERM
 
+#ifndef __ANDROID__
 #define BREAK_SIGNAL     SIGQUIT           /* Thread dumping support.    */
+#else
+/* Dalvik intercepts SIGQUIT so use SIGTERM */
+#define BREAK_SIGNAL     SIGTERM           /* Thread dumping support.    */
+#define SIGBREAK         BREAK_SIGNAL
+#endif
+#define INTERRUPT_SIGNAL SIGUSR1           /* Interruptible I/O support. */
+
 #ifdef SOLARIS
 #define ASYNC_SIGNAL     SIGJVM2           /* Event-based suspend/resume support */
 #endif // SOLARIS

@@ -265,6 +265,18 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
   EXTRA_CFLAGS="$MACHINE_FLAG $USER_CFLAGS"
   EXTRA_CXXFLAGS="$MACHINE_FLAG $USER_CXXFLAGS"
   EXTRA_LDFLAGS="$MACHINE_FLAG $USER_LDFLAGS"
+  # Additional android handling
+  if test "x$OPENJDK_TARGET_OS" = xandroid; then
+    if test "x$OPENJDK_TARGET_CPU" = xarm; then
+      EXTRA_CFLAGS="$EXTRA_CFLAGS -mthumb -march=armv7-a -mfloat-abi=softfp -mfpu=vfp -fno-short-enums -D__GLIBC__ -D_GNU_SOURCE  -Wno-psabi -fPIE"
+      EXTRA_CXXFLAGS="$EXTRA_CXXFLAGS -mthumb -march=armv7-a -mfloat-abi=softfp -mfpu=vfp -DFLOAT_ARCH=-vfp-sflt -fPIE"
+      EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,--unresolved-symbols=ignore-all -Wl,--gc-sections -fPIE"
+    else
+      EXTRA_CFLAGS="$EXTRA_CFLAGS -fno-short-enums -D__GLIBC__ -D_GNU_SOURCE -Wno-psabi -march=i686 -msse3 -mstackrealign -mfpmath=sse -fPIE"
+      EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,--unresolved-symbols=ignore-all -Wl,--gc-sections -Wl,-z,nocopyreloc -fPIE"
+    fi
+  fi
+
 
   AC_SUBST(EXTRA_CFLAGS)
   AC_SUBST(EXTRA_CXXFLAGS)

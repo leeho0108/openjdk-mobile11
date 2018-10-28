@@ -97,12 +97,24 @@
 # include <poll.h>
 # include <fcntl.h>
 # include <string.h>
-# include <syscall.h>
 # include <sys/sysinfo.h>
+#ifndef __ANDROID__
+# include <syscall.h>
 # include <gnu/libc-version.h>
 # include <sys/ipc.h>
 # include <sys/shm.h>
 # include <link.h>
+#else
+# include <sys/syscall.h>
+# include <linux/elf.h>
+# include <linux/elf-em.h>
+// Have to define this here if we are building for Android x86 emulator
+// because it is not defined in android x86 include of linux/elf.h as it is
+// in arm version
+#ifndef EM_ARM
+#define EM_ARM 40
+#endif
+#endif
 # include <stdint.h>
 # include <inttypes.h>
 # include <sys/ioctl.h>
@@ -168,6 +180,23 @@ static bool check_signals = true;
 // do not use any signal number less than SIGSEGV, see 4355769
 static int SR_signum = SIGUSR2;
 sigset_t SR_sigset;
+
+#ifdef __ANDROID__
+
+int open64(const char* pathName, int flags, int mode)
+{
+  return ::open(pathName, flags, mode);
+}
+
+int getloadavg (double __loadavg[], int __nelem)
+{
+  return -1;
+}
+
+typedef int error_t;
+
+#endif //__ANDROID__
+
 
 // utility functions
 
@@ -247,6 +276,8 @@ bool os::have_special_privileges() {
       #else
         #ifdef __sparc__
           #define SYS_gettid 143
+        #elif defined(__ANDROID__)
+           #define SYS_gettid 224
         #else
           #error define gettid for the arch
         #endif
@@ -458,9 +489,11 @@ void os::Linux::signal_sets_init() {
     if (!os::Posix::is_sig_ignored(SHUTDOWN2_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN2_SIGNAL);
     }
+#ifndef __ANDROID__
     if (!os::Posix::is_sig_ignored(SHUTDOWN3_SIGNAL)) {
       sigaddset(&unblocked_sigs, SHUTDOWN3_SIGNAL);
     }
+#endif
   }
   // Fill in signals that are blocked by all but the VM thread.
   sigemptyset(&vm_sigs);
@@ -511,6 +544,7 @@ void os::Linux::hotspot_sigmask(Thread* thread) {
 // detecting pthread library
 
 void os::Linux::libpthread_init() {
+#ifndef __ANDROID__
   // Save glibc and pthread version strings.
 #if !defined(_CS_GNU_LIBC_VERSION) || \
     !defined(_CS_GNU_LIBPTHREAD_VERSION)
@@ -528,6 +562,9 @@ void os::Linux::libpthread_init() {
   str = (char *)malloc(n, mtInternal);
   confstr(_CS_GNU_LIBPTHREAD_VERSION, str, n);
   os::Linux::set_libpthread_version(str);
+#else
+  os::Linux::set_libpthread_version("NPTL");
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1069,7 +1106,11 @@ void os::Linux::capture_initial_stack(size_t max_size) {
 
         //                                     1   1   1   1   1   1   1   1   1   1   2   2    2    2    2    2    2    2    2
         //              3  4  5  6  7  8   9   0   1   2   3   4   5   6   7   8   9   0   1    2    3    4    5    6    7    8
+#ifdef __ANDROID__
+        i = sscanf(s, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld %ld %ld %u %u %d %u %     u %u %u",
+#else
         i = sscanf(s, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %ld %ld %ld " _UFM _UFM _DFM _UFM _UFM _UFM _UFM,
+#endif
                    &state,          // 3  %c
                    &ppid,           // 4  %d
                    &pgrp,           // 5  %d
@@ -1222,39 +1263,50 @@ void os::javaTimeSystemUTC(jlong &seconds, jlong &nanos) {
 #endif
 
 void os::Linux::clock_init() {
-  // we do dlopen's in this particular order due to bug in linux
-  // dynamical loader (see 6348968) leading to crash on exit
-  void* handle = dlopen("librt.so.1", RTLD_LAZY);
-  if (handle == NULL) {
-    handle = dlopen("librt.so", RTLD_LAZY);
-  }
+  void* handle = NULL;
 
-  if (handle) {
-    int (*clock_getres_func)(clockid_t, struct timespec*) =
-           (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_getres");
-    int (*clock_gettime_func)(clockid_t, struct timespec*) =
-           (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_gettime");
-    if (clock_getres_func && clock_gettime_func) {
-      // See if monotonic clock is supported by the kernel. Note that some
-      // early implementations simply return kernel jiffies (updated every
-      // 1/100 or 1/1000 second). It would be bad to use such a low res clock
-      // for nano time (though the monotonic property is still nice to have).
-      // It's fixed in newer kernels, however clock_getres() still returns
-      // 1/HZ. We check if clock_getres() works, but will ignore its reported
-      // resolution for now. Hopefully as people move to new kernels, this
-      // won't be a problem.
-      struct timespec res;
-      struct timespec tp;
-      if (clock_getres_func (CLOCK_MONOTONIC, &res) == 0 &&
-          clock_gettime_func(CLOCK_MONOTONIC, &tp)  == 0) {
-        // yes, monotonic clock is supported
-        _clock_gettime = clock_gettime_func;
-        return;
-      } else {
-        // close librt if there is no monotonic clock
-        dlclose(handle);
-      }
+  // Check if functions are already available.
+  int (*clock_getres_func)(clockid_t, struct timespec*) =
+    (int(*)(clockid_t, struct timespec*))dlsym(RTLD_DEFAULT, "clock_getres");
+  int (*clock_gettime_func)(clockid_t, struct timespec*) =
+    (int(*)(clockid_t, struct timespec*))dlsym(RTLD_DEFAULT, "clock_gettime");
+  if (clock_getres_func == NULL || clock_gettime_func == NULL) {
+    // Did not find one, try librt.so
+    // we do dlopen's in this particular order due to bug in linux
+    // dynamical loader (see 6348968) leading to crash on exit
+    handle = dlopen("librt.so.1", RTLD_LAZY);
+    if (handle == NULL) {
+      handle = dlopen("librt.so", RTLD_LAZY);
     }
+
+    if (handle) {
+      clock_getres_func =
+        (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_getres");
+      clock_gettime_func =
+        (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_gettime");
+    }
+  }
+  if (clock_getres_func && clock_gettime_func) {
+    // See if monotonic clock is supported by the kernel. Note that some
+    // early implementations simply return kernel jiffies (updated every
+    // 1/100 or 1/1000 second). It would be bad to use such a low res clock
+    // for nano time (though the monotonic property is still nice to have).
+    // It's fixed in newer kernels, however clock_getres() still returns
+    // 1/HZ. We check if clock_getres() works, but will ignore its reported
+    // resolution for now. Hopefully as people move to new kernels, this
+    // won't be a problem.
+    struct timespec res;
+    struct timespec tp;
+    if (clock_getres_func (CLOCK_MONOTONIC, &res) == 0 &&
+        clock_gettime_func(CLOCK_MONOTONIC, &tp)  == 0) {
+      // yes, monotonic clock is supported
+      _clock_gettime = clock_gettime_func;
+      return;
+    }
+  }
+  // close librt if there is no monotonic clock
+  if (handle != NULL) {
+    dlclose(handle);
   }
   warning("No monotonic clock was available - timed services may " \
           "be adversely affected if the time-of-day clock changes");
@@ -1263,6 +1315,9 @@ void os::Linux::clock_init() {
 #ifndef SYS_clock_getres
   #if defined(X86) || defined(PPC64) || defined(S390)
     #define SYS_clock_getres AMD64_ONLY(229) IA32_ONLY(266) PPC64_ONLY(247) S390_ONLY(261)
+    #define sys_clock_getres(x,y)  ::syscall(SYS_clock_getres, x, y)
+  #elif __ANDROID__
+    #define SYS_clock_getres 264
     #define sys_clock_getres(x,y)  ::syscall(SYS_clock_getres, x, y)
   #else
     #warning "SYS_clock_getres not defined for this platform, disabling fast_thread_cpu_time"
@@ -1448,7 +1503,13 @@ const char* os::dll_file_extension() { return ".so"; }
 
 // This must be hard coded because it's the system's temporary
 // directory not the java application's temp directory, ala java.io.tmpdir.
-const char* os::get_temp_directory() { return "/tmp"; }
+const char* os::get_temp_directory() {
+#ifndef __ANDROID__
+  return "/tmp";
+#else
+  return "/sdcard";
+#endif
+}
 
 static bool file_exists(const char* filename) {
   struct stat statbuf;
@@ -1515,6 +1576,7 @@ struct _address_to_library_name {
   address base;          //         library base addr
 };
 
+#ifndef __ANDROID__
 static int address_to_library_name_callback(struct dl_phdr_info *info,
                                             size_t size, void *data) {
   int i;
@@ -1551,6 +1613,7 @@ static int address_to_library_name_callback(struct dl_phdr_info *info,
   }
   return 0;
 }
+#endif
 
 bool os::dll_address_to_library_name(address addr, char* buf,
                                      int buflen, int* offset) {
@@ -1558,6 +1621,7 @@ bool os::dll_address_to_library_name(address addr, char* buf,
   assert(buf != NULL, "sanity check");
 
   Dl_info dlinfo;
+#ifndef __ANDROID__
   struct _address_to_library_name data;
 
   // There is a bug in old glibc dladdr() implementation that it could resolve
@@ -1576,6 +1640,7 @@ bool os::dll_address_to_library_name(address addr, char* buf,
     if (offset) *offset = addr - data.base;
     return true;
   }
+#endif
   if (dladdr((void*)addr, &dlinfo) != 0) {
     if (dlinfo.dli_fname != NULL) {
       jio_snprintf(buf, buflen, "%s", dlinfo.dli_fname);
@@ -2374,6 +2439,7 @@ void os::jvm_path(char *buf, jint buflen) {
     return;
   }
 
+#ifndef __ANDROID__
   char dli_fname[MAXPATHLEN];
   bool ret = dll_address_to_library_name(
                                          CAST_FROM_FN_PTR(address, os::jvm_path),
@@ -2383,6 +2449,14 @@ void os::jvm_path(char *buf, jint buflen) {
   if (ret && dli_fname[0] != '\0') {
     rp = os::Posix::realpath(dli_fname, buf, buflen);
   }
+#else
+  char dli_fname[MAXPATHLEN];
+  char *rp;
+
+  snprintf(buf, buflen, "%s/lib/client/%s", _java_home,
+           "libjvm.so");
+  rp = buf;
+#endif
   if (rp == NULL) {
     return;
   }
@@ -2908,7 +2982,10 @@ extern "C" JNIEXPORT void numa_error(char *where) { }
 // Handle request to load libnuma symbol version 1.1 (API v1). If it fails
 // load symbol from base version instead.
 void* os::Linux::libnuma_dlsym(void* handle, const char *name) {
-  void *f = dlvsym(handle, name, "libnuma_1.1");
+  void *f = NULL;
+#ifndef __ANDROID__
+  f = dlvsym(handle, name, "libnuma_1.1");
+#endif
   if (f == NULL) {
     f = dlsym(handle, name);
   }
@@ -3598,6 +3675,14 @@ bool os::Linux::setup_large_page_type(size_t page_size) {
     }
     UseHugeTLBFS = false;
   }
+#if ! SUPPORTS_SHM
+  if (UseSHM) {
+    if (FLAG_IS_CMDLINE(UseSHM)) {
+      warning("UseSHM not supported on this platform");
+    }
+    UseSHM = false;
+  }
+#endif
 
   return UseSHM;
 }
@@ -3629,6 +3714,8 @@ void os::large_page_init() {
 #ifndef SHM_HUGETLB
   #define SHM_HUGETLB 04000
 #endif
+
+#if SUPPORTS_SHM
 
 #define shm_warning_format(format, ...)              \
   do {                                               \
@@ -3721,9 +3808,13 @@ static char* shmat_large_pages(int shmid, size_t bytes, size_t alignment, char* 
     return shmat_at_address(shmid, NULL);
   }
 }
+#endif // SUPPORTS_SHM
+
 
 char* os::Linux::reserve_memory_special_shm(size_t bytes, size_t alignment,
                                             char* req_addr, bool exec) {
+  char *addr = NULL;
+#if SUPPORTS_SHM
   // "exec" is passed in but not used.  Creating the shared image for
   // the code cache doesn't have an SHM_X executable permission to check.
   assert(UseLargePages && UseSHM, "only for SHM large pages");
@@ -3757,13 +3848,17 @@ char* os::Linux::reserve_memory_special_shm(size_t bytes, size_t alignment,
   }
 
   // Attach to the region.
-  char* addr = shmat_large_pages(shmid, bytes, alignment, req_addr);
+  addr = shmat_large_pages(shmid, bytes, alignment, req_addr);
 
   // Remove shmid. If shmat() is successful, the actual shared memory segment
   // will be deleted when it's detached by shmdt() or when the process
   // terminates. If shmat() is not successful this will remove the shared
   // segment immediately.
   shmctl(shmid, IPC_RMID, NULL);
+#else
+  assert(0, "SHM not supported on this platform");
+#endif // SUPPORTS_SHM
+
 
   return addr;
 }
@@ -3920,6 +4015,7 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment,
 
   char* addr;
   if (UseSHM) {
+    assert(SUPPORTS_SHM, "UseSHM not supported on this platform");
     addr = os::Linux::reserve_memory_special_shm(bytes, alignment, req_addr, exec);
   } else {
     assert(UseHugeTLBFS, "must be");
@@ -3939,8 +4035,13 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment,
 }
 
 bool os::Linux::release_memory_special_shm(char* base, size_t bytes) {
+#if SUPPORTS_SHM
   // detaching the SHM segment will also delete it, see reserve_memory_special_shm()
   return shmdt(base) == 0;
+#else
+  assert(0, "SHM not supported on this platform");
+  return false;
+#endif // SUPPORTS_SHM
 }
 
 bool os::Linux::release_memory_special_huge_tlbfs(char* base, size_t bytes) {
@@ -3967,6 +4068,7 @@ bool os::Linux::release_memory_special_impl(char* base, size_t bytes) {
   bool res;
 
   if (UseSHM) {
+    assert(SUPPORTS_SHM, "UseSHM not supported on this platform");
     res = os::Linux::release_memory_special_shm(base, bytes);
   } else {
     assert(UseHugeTLBFS, "must be");
@@ -4927,10 +5029,20 @@ void os::Linux::check_signal_handler(int sig) {
 
   case SHUTDOWN1_SIGNAL:
   case SHUTDOWN2_SIGNAL:
+#ifndef __ANDROID__
+  /*
+   * In Android we commandeer this signal (SIGTERM) to substitute for
+   * SIGQUIT
+   */
   case SHUTDOWN3_SIGNAL:
+#endif
   case BREAK_SIGNAL:
     jvmHandler = (address)user_handler();
     break;
+  case INTERRUPT_SIGNAL:
+    jvmHandler = CAST_FROM_FN_PTR(address, SIG_DFL);
+    break;
+
 
   default:
     if (sig == SR_signum) {
@@ -5124,6 +5236,28 @@ jint os::init_2(void) {
 
   // initialize thread priority policy
   prio_init();
+#ifdef __ANDROID__
+  {
+    // Android apps run with a current directory of '/'. Non-canonical
+    // pathnames will be relative to '/' so most of these opens will fail.
+    // We chdir to user.dir property value. If it has been set on the command
+    // line to a writable directory then file creation should work.
+    // By default user.dir is set to '/' on Android.
+    int ret;
+    char pathbuf[MAX_PATH];
+    const char *user_dir = Arguments::get_property("user.dir");
+    if(user_dir != NULL) {
+      int n = snprintf(pathbuf, MAX_PATH, "%s", user_dir);
+      if (n < (int)MAX_PATH) {
+        ret = chdir(pathbuf);
+        if (ret != 0) {
+          warning("Could not chdir to user.dir directory %s", pathbuf);
+        }
+      }
+    }
+  }
+#endif
+
 
   if (!FLAG_IS_DEFAULT(AllocateHeapAt)) {
     set_coredump_filter(false /*largepages*/, true /*dax_shared*/);
@@ -5731,6 +5865,11 @@ void os::pause() {
   }
 }
 
+// Used by Android to find path to jvm dlls
+void os::set_jvm_path(const char *jvm_home) {
+  _java_home = strdup(jvm_home);
+}
+
 extern char** environ;
 
 // Run the specified command in a separate process. Return its exit value,
@@ -5978,14 +6117,22 @@ size_t os::current_stack_size() {
 }
 #endif
 
-static inline struct timespec get_mtime(const char* filename) {
+// static inline struct timespec get_mtime(const char* filename) {
+static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
   assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
-  return st.st_mtim;
+  // return st.st_mtim;
+  return st.st_mtime;
 }
 
 int os::compare_file_modified_times(const char* file1, const char* file2) {
+  time_t filetime1 = get_mtime(file1);
+  time_t filetime2 = get_mtime(file2);
+  int diff = filetime1 - filetime2;
+  return diff;
+
+/*
   struct timespec filetime1 = get_mtime(file1);
   struct timespec filetime2 = get_mtime(file2);
   int diff = filetime1.tv_sec - filetime2.tv_sec;
@@ -5993,6 +6140,7 @@ int os::compare_file_modified_times(const char* file1, const char* file2) {
     return filetime1.tv_nsec - filetime2.tv_nsec;
   }
   return diff;
+*/
 }
 
 /////////////// Unit tests ///////////////

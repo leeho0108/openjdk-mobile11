@@ -153,7 +153,7 @@ $(JVM_OUTPUTDIR)/symbols: $(SYMBOLS_SRC)
 ################################################################################
 # Finally convert the symbol list into a platform-specific mapfile
 
-ifeq (, $(filter $(OPENJDK_TARGET_OS), ios macosx))
+ifneq (, $(filter $(OPENJDK_TARGET_OS), ios macosx))
   # On macosx and ios, we need to add a leading underscore
   define create-mapfile-work
 	  $(AWK) '{ if ($$0 ~ ".") { print "  _" $$0 } }'  < $^ > $@.tmp

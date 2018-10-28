@@ -102,6 +102,8 @@ class os: AllStatic {
   static address            _polling_page;
   static volatile int32_t * _mem_serialize_page;
   static uintptr_t          _serialize_page_mask;
+  static const char *       _java_home;
+
  public:
   static size_t             _page_sizes[page_sizes_max];
 
@@ -737,6 +739,10 @@ class os: AllStatic {
 
   // Fills in path to jvm.dll/libjvm.so (used by the Disassembler)
   static void     jvm_path(char *buf, jint buflen);
+
+  // Sets value of java.home property, used by some platforms to load dlls
+  static void     set_jvm_path(const char *jvm_home);
+
 
   // JNI names
   static void     print_jni_name_prefix_on(outputStream* st, int args_size);

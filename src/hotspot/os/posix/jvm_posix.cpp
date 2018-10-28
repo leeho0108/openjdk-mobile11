@@ -76,7 +76,13 @@ JVM_ENTRY_NO_ENV(void*, JVM_RegisterSignal(jint sig, void* handler))
 
     case SHUTDOWN1_SIGNAL:
     case SHUTDOWN2_SIGNAL:
+#ifndef __ANDROID__
+    /*
+     * In Android we commandeer this signal (SIGTERM) to substitute for
+     * SIGQUIT so this case is handled by BREAK_SIGNAL above.
+     */
     case SHUTDOWN3_SIGNAL:
+#endif
       if (ReduceSignalUsage) return (void*)-1;
       if (os::Posix::is_sig_ignored(sig)) return (void*)1;
   }
