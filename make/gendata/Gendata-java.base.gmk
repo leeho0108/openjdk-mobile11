@@ -74,6 +74,14 @@ endif
 
 # RESTRICTED_PKGS_SRC is optionally set in custom extension for this makefile
 
+GENDATA_TARGET_OS = $(OPENJDK_TARGET_OS)
+ifeq ($(OPENJDK_TARGET_OS),android)
+GENDATA_TARGET_OS = linux
+endif
+ifeq ($(OPENJDK_TARGET_OS),ios)
+GENDATA_TARGET_OS = linux
+endif
+
 $(GENDATA_JAVA_SECURITY): $(BUILD_TOOLS) $(GENDATA_JAVA_SECURITY_SRC) $(RESTRICTED_PKGS_SRC)
 	$(call LogInfo, Generating java.security)
 	$(call MakeDir, $(@D))

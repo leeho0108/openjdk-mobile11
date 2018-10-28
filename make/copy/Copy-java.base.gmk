@@ -193,6 +193,19 @@ ifeq ($(OPENJDK_TARGET_OS), solaris)
 endif
 
 ################################################################################
+# Deliver the static libfdlibm along with the other static built libraries.
+
+FDLIBM_TARGET_LIB := $(LIB_DST_DIR)$(OPENJDK_TARGET_CPU_LIBDIR)/$(LIBRARY_PREFIX)fdlibm$(STATIC_LIBRARY_SUFFIX)
+ifeq ($(STATIC_BUILD), true)
+  $(FDLIBM_TARGET_LIB): $(SUPPORT_OUTPUTDIR)/native/java.base/$(LIBRARY_PREFIX)fdlibm$(STATIC_LIBRARY_SUFFIX)
+        $(call install-file)
+
+#  TARGETS += $(FDLIBM_TARGET_LIB)
+endif
+
+
+
+################################################################################
 
 # JDK license and assembly exception files to be packaged in JMOD
 
