@@ -144,12 +144,14 @@ JNIEXPORT jobjectArray
 JNICALL Java_sun_security_ec_ECKeyPairGenerator_generateECKeyPair
   (JNIEnv *env, jclass clazz, jint keySize, jbyteArray encodedParams, jbyteArray seed)
 {
+fprintf(stderr, "GENERATEECKEYPAIR NOT SUPPORTED\n\n\n");
     ECPrivateKey *privKey = NULL; // contains both public and private values
     ECParams *ecparams = NULL;
     SECKEYECParams params_item;
     jint jSeedLength;
     jbyte* pSeedBuffer = NULL;
     jobjectArray result = NULL;
+#if 0
     jclass baCls = NULL;
     jbyteArray jba;
 
@@ -229,10 +231,12 @@ cleanup:
         }
 
         if (pSeedBuffer) {
-            delete [] pSeedBuffer;
+fprintf(stderr, "IGNOREDELETECRYPTO\n");
+            // delete [] pSeedBuffer;
         }
     }
 
+#endif
     return result;
 }
 
@@ -245,6 +249,9 @@ JNIEXPORT jbyteArray
 JNICALL Java_sun_security_ec_ECDSASignature_signDigest
   (JNIEnv *env, jclass clazz, jbyteArray digest, jbyteArray privateKey, jbyteArray encodedParams, jbyteArray seed, jint timing)
 {
+fprintf(stderr, "SIGNDIGEST NOT IMPLEMENTED\n\n");
+return NULL;
+#if 0
     jbyte* pDigestBuffer = NULL;
     jint jDigestLength = env->GetArrayLength(digest);
     jbyteArray jSignedDigest = NULL;
@@ -328,14 +335,15 @@ cleanup:
             env->ReleaseByteArrayElements(privateKey,
                 (jbyte *) privKey.privateValue.data, JNI_ABORT);
         }
+fprintf(stderr, "IGNOREDELETECRYPTO\n");
         if (pDigestBuffer) {
-            delete [] pDigestBuffer;
+            // delete [] pDigestBuffer;
         }
         if (pSignedDigestBuffer) {
-            delete [] pSignedDigestBuffer;
+            // delete [] pSignedDigestBuffer;
         }
         if (pSeedBuffer) {
-            delete [] pSeedBuffer;
+            // delete [] pSeedBuffer;
         }
         if (ecparams) {
             FreeECParams(ecparams, true);
@@ -343,6 +351,7 @@ cleanup:
     }
 
     return jSignedDigest;
+#endif
 }
 
 /*
@@ -354,6 +363,9 @@ JNIEXPORT jboolean
 JNICALL Java_sun_security_ec_ECDSASignature_verifySignedDigest
   (JNIEnv *env, jclass clazz, jbyteArray signedDigest, jbyteArray digest, jbyteArray publicKey, jbyteArray encodedParams)
 {
+fprintf(stderr, "VERIFYSIGN not implemented\n\n");
+return B_FALSE;
+#if 0
     jboolean isValid = false;
 
     // Copy signedDigest from Java to native buffer
@@ -420,14 +432,16 @@ cleanup:
         if (ecparams)
             FreeECParams(ecparams, true);
 
-        if (pSignedDigestBuffer)
-            delete [] pSignedDigestBuffer;
+fprintf(stderr, "IGNOREDELETECRYPTO\n");
+        if (pSignedDigestBuffer) {}
+            // delete [] pSignedDigestBuffer;
 
-        if (pDigestBuffer)
-            delete [] pDigestBuffer;
+        if (pDigestBuffer) {}
+            // delete [] pDigestBuffer;
     }
 
     return isValid;
+#endif
 }
 
 /*
@@ -523,5 +537,16 @@ cleanup:
 
     return jSecret;
 }
+
+void Java_sun_security_krb5_Config_getWindowsDirectory() {
+fprintf(stderr, "TRASH NOT IMPLEMENTED\n\n");
+}
+void Java_sun_security_krb5_SCDynamicStoreConfig_getKerberosConfig () {
+fprintf(stderr, "TRASH NOT IMPLEMENTED\n\n");
+}
+void Java_sun_security_smartcardio_PCSC_SCardEstablishContext() {
+fprintf(stderr, "TRASH NOT IMPLEMENTED\n\n");
+}
+
 
 } /* extern "C" */

@@ -29,12 +29,18 @@
 #import <Security/Security.h>
 #import <Security/SecImportExport.h>
 #import <CoreServices/CoreServices.h>  // (for require() macros)
+
+#ifndef STATIC_BUILD
+#error FOUT
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
 
 static JNF_CLASS_CACHE(jc_KeychainStore, "apple/security/KeychainStore");
 static JNF_MEMBER_CACHE(jm_createTrustedCertEntry, jc_KeychainStore, "createTrustedCertEntry", "(Ljava/lang/String;JJ[B)V");
 static JNF_MEMBER_CACHE(jm_createKeyEntry, jc_KeychainStore, "createKeyEntry", "(Ljava/lang/String;JJ[J[[B)V");
+#else
+#error goed
+#endif
 
 static jstring getLabelFromItem(JNIEnv *env, SecKeychainItemRef inItem)
 {
@@ -510,6 +516,7 @@ JNIEXPORT jlong JNICALL Java_apple_security_KeychainStore__1addItemToKeychain
 {
     OSStatus err;
     jlong returnValue = 0;
+#ifndef STATIC_BUILD
 
 JNF_COCOA_ENTER(env);
 
@@ -594,6 +601,7 @@ errOut:
     }
 
 JNF_COCOA_EXIT(env);
+#endif
 
     return returnValue;
 }

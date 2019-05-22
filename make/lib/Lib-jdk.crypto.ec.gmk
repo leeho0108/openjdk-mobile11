@@ -42,7 +42,7 @@ ifeq ($(ENABLE_INTREE_EC), true)
       NAME := sunec, \
       TOOLCHAIN := TOOLCHAIN_LINK_CXX, \
       OPTIMIZATION := LOW, \
-      CFLAGS := $(BUILD_LIBSUNEC_CFLAGS_JDKLIB) \
+      CFLAGS := -DBUILD_STATIC $(BUILD_LIBSUNEC_CFLAGS_JDKLIB) \
           -DMP_API_COMPATIBLE -DNSS_ECC_MORE_THAN_SUITE_B, \
       CXXFLAGS := $(BUILD_LIBSUNEC_CXXFLAGS_JDKLIB), \
       DISABLED_WARNINGS_gcc := sign-compare implicit-fallthrough, \
@@ -50,6 +50,7 @@ ifeq ($(ENABLE_INTREE_EC), true)
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
       LDFLAGS_macosx := $(call SET_SHARED_LIBRARY_ORIGIN), \
       LIBS := $(LIBCXX), \
+      # EXCLUDE_FILES := ECC_JNI.cpp \
   ))
 
   TARGETS += $(BUILD_LIBSUNEC)

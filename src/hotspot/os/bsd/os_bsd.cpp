@@ -3802,6 +3802,7 @@ void os::pause() {
   }
 }
 
+#if ! TARGET_OS_IPHONE
 // Darwin has no "environ" in a dynamic library.
 #ifdef __APPLE__
   #include <crt_externs.h>
@@ -3875,6 +3876,10 @@ int os::fork_and_exec(char* cmd) {
     }
   }
 }
+#else // TARGET_OS_IPHONE
+int os::fork_and_exec(char* cmd, bool use_vfork_if_available) { return -1; }
+#endif // TARGET_OS_IPHONE
+
 
 // Get the default path to the core file
 // Returns the length of the string
