@@ -189,6 +189,10 @@ AC_DEFUN([TOOLCHAIN_SETUP_FILENAME_PATTERNS],
     STATIC_LIBRARY='lib[$]1.a'
     OBJ_SUFFIX='.o'
     EXE_SUFFIX=''
+    if test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$STATIC_BUILD" = "xtrue" ; then
+      SHARED_LIBRARY_SUFFIX='.a'
+      SHARED_LIBRARY='lib[$]1.a'
+    fi
     if test "x$OPENJDK_TARGET_OS" = "xmacosx" || test "x$OPENJDK_TARGET_OS" = "xios" ; then
       # For full static builds, we're overloading the SHARED_LIBRARY
       # variables in order to limit the amount of changes required.

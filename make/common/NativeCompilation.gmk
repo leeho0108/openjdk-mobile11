@@ -40,6 +40,12 @@ endif
 
 # get the exported symbols from mapfiles and if there
 # is no mapfile, get them from the archive
+ifeq ($(OPENJDK_TARGET_OS), linux)
+    MNM = $(NM)
+else
+    MNM = $(NM) -m
+endif
+
 define GetSymbols
   $(RM) $$(@D)/$$(basename $$(@F)).symbols; \
   if [ ! -z $$($1_MAPFILE) -a -e $$($1_MAPFILE) ]; then \
@@ -53,7 +59,7 @@ define GetSymbols
         $(CUT) -d ' ' -f 3 >>  $$(@D)/$$(basename $$(@F)).symbols || true;\
   else \
     $(ECHO) "Getting symbols from nm"; \
-    $(NM) -m $$($1_TARGET) | $(GREP)  "__TEXT" | \
+      $(MNM) $$($1_TARGET) | $(GREP)  "__TEXT" | \
         $(EGREP) -v "non-external|private extern|__TEXT,__eh_frame" | \
         $(SED) -e  's/.* //' > $$(@D)/$$(basename $$(@F)).symbols || true; \
   fi
