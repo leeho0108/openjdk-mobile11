@@ -197,7 +197,7 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
 
       if (test "x$FOUND_FREETYPE" != "xyes"); then
         HELP_MSG_MISSING_DEPENDENCY([freetype])
-        AC_MSG_ERROR([Could not find freetype! $HELP_MSG ])
+        // AC_MSG_ERROR([Could not find freetype! $HELP_MSG ])
       fi
     fi # end user specified settings
 

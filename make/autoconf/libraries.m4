@@ -60,7 +60,7 @@ AC_DEFUN_ONCE([LIB_DETERMINE_DEPENDENCIES],
   fi
 
   # Check if cups is needed
-  if test "x$OPENJDK_TARGET_OS" = xwindows; then
+  if test "x$OPENJDK_TARGET_OS" = xwindows || test "x$STATIC_BUILD" = xtrue; then
     # Windows have a separate print system
     NEEDS_LIB_CUPS=false
   else
