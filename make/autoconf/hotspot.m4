@@ -304,12 +304,16 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   fi
 
   # Override hotspot cpu definitions for ARM platforms
+  if test $HOTSPOT_TARGET_CPU = "zero"; then
+      HOTSPOT_TARGET_CPU_DEFINE="ZERO"
+  else
   if test "x$OPENJDK_TARGET_CPU" = xarm; then
     HOTSPOT_TARGET_CPU=arm_32
     HOTSPOT_TARGET_CPU_DEFINE="ARM32"
   elif test "x$OPENJDK_TARGET_CPU" = xaarch64 && test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
     HOTSPOT_TARGET_CPU=arm_64
     HOTSPOT_TARGET_CPU_ARCH=arm
+  fi
   fi
 
   # Verify that dependencies are met for explicitly set features.
