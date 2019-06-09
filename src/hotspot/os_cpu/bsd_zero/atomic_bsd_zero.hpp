@@ -185,6 +185,7 @@ inline D Atomic::PlatformAdd<4>::add_and_fetch(I add_value, D volatile* dest,
 #endif // ARM
 }
 
+#ifndef ZERO
 template<>
 template<typename I, typename D>
 inline D Atomic::PlatformAdd<8>::add_and_fetch(I add_value, D volatile* dest,
@@ -194,6 +195,7 @@ inline D Atomic::PlatformAdd<8>::add_and_fetch(I add_value, D volatile* dest,
 
   return __sync_add_and_fetch(dest, add_value);
 }
+#endif
 
 template<>
 template<typename T>
